@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Подбор подрядчиков</title>
+  <style>
+    :root{color-scheme:light;--ink:#20251f;--muted:#69716a;--line:#dfe5dc;--paper:#f6f7f3;--green:#286244;--pale:#eaf2ec;--amber:#805d16;--red:#9a3f36}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(1040px,calc(100% - 32px));margin:42px auto 72px}.head{margin-bottom:26px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--green)}h1{font-size:clamp(28px,4vw,40px);line-height:1.12;margin:9px 0 10px;letter-spacing:-.035em}.lead{max-width:650px;color:var(--muted);margin:0}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:22px;align-items:start}
+    .panel,.result{background:#fff;border:1px solid var(--line);border-radius:16px}.panel{padding:20px;position:sticky;top:18px}.panel h2{font-size:18px;margin:0 0 16px}.field{margin:0 0 14px}.field label{display:block;font-size:13px;font-weight:650;margin-bottom:5px}.field input,.field select{width:100%;min-height:42px;border:1px solid #cbd3c9;border-radius:9px;padding:9px 11px;font:inherit;color:var(--ink);background:#fff}.field input:focus,.field select:focus{outline:3px solid #dcebe0;border-color:var(--green)}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.optional{color:var(--muted);font-size:12px;font-weight:400}.submit{width:100%;border:0;border-radius:10px;padding:12px 15px;background:var(--green);color:#fff;font:inherit;font-weight:700;cursor:pointer}.submit:disabled{opacity:.6;cursor:wait}.fine{font-size:12px;color:var(--muted);margin:12px 0 0}.results{min-width:0}.summary{margin:2px 0 14px;font-size:15px;font-weight:650}.cards{display:grid;gap:12px}.card{padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff}.card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.card h3{font-size:19px;line-height:1.25;margin:0 0 5px}.category{font-size:13px;color:var(--muted)}.price{font-size:17px;font-weight:750;white-space:nowrap}.meta{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 12px}.tag{font-size:12px;color:#3e5745;background:var(--pale);border-radius:999px;padding:4px 9px}.tag.warn{background:#f8f0dc;color:var(--amber)}.explanation{margin:0;font-size:14px}.empty{padding:20px;border-radius:13px;background:#fff;border:1px dashed #cbd3c9;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}.reasons{margin:12px 0 0;padding-left:19px;font-size:13px;color:var(--muted)}.notice{margin:0 0 14px;padding:9px 12px;border-radius:9px;background:#edf2eb;color:#526252;font-size:12px}.hidden{display:none!important}.error{color:var(--red);font-size:13px;margin:10px 0 0}.spin{display:inline-block;width:14px;height:14px;margin-right:7px;border:2px solid #ffffff80;border-top-color:white;border-radius:50%;vertical-align:-2px;animation:turn .8s linear infinite}@keyframes turn{to{transform:rotate(360deg)}}
+    @media(max-width:760px){main{margin:24px auto 48px}.layout{grid-template-columns:1fr}.panel{position:static}.row{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="head">
+    <div class="eyebrow">Подрядчики мероприятий · Казахстан</div>
+    <h1>Кого выбрать для вашего события?</h1>
+    <p class="lead">Укажите условия заказа — покажем до трёх свободных подрядчиков из каталога и объясним, чем каждый подходит.</p>
+  </header>
+  <div class="layout">
+    <form class="panel" id="form">
+      <h2>Параметры заказа</h2>
+      <div class="field"><label for="city">Город</label><select id="city" required></select></div>
+      <div class="field"><label for="event_date">Дата мероприятия</label><input id="event_date" type="date" required></div>
+      <div class="field"><label for="event_type">Тип мероприятия</label><select id="event_type" required></select></div>
+      <div class="field"><label for="category">Категория подрядчика</label><select id="category" required></select></div>
+      <div class="field"><label for="budget_kzt">Бюджет, ₸</label><input id="budget_kzt" type="number" min="0" step="1000" placeholder="Например, 500000" required></div>
+      <div class="row">
+        <div class="field"><label for="duration_hours">Длительность <span class="optional">ч · необязательно</span></label><input id="duration_hours" type="number" min="0.5" step="0.5" placeholder="6"></div>
+        <div class="field"><label for="language">Язык <span class="optional">необязательно</span></label><select id="language"></select></div>
+      </div>
+      <button class="submit" id="submit" type="submit">Подобрать подрядчиков</button>
+      <p class="fine" id="mode"></p><p class="error hidden" id="error"></p>
+    </form>
+    <section class="results" aria-live="polite">
+      <div class="notice hidden" id="api-note"></div>
+      <div class="summary" id="summary">Заполните параметры заказа, чтобы увидеть подходящие варианты.</div>
+      <div class="cards" id="cards"></div>
+      <div class="empty hidden" id="empty"><strong id="empty-title"></strong><span id="empty-text"></span><ul class="reasons hidden" id="reasons"></ul></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const fill = (select, values, placeholder) => {
+  select.replaceChildren();
+  const first = document.createElement('option'); first.value = ''; first.textContent = placeholder; select.append(first);
+  values.forEach(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; select.append(option); });
+};
+const formatMoney = value => new Intl.NumberFormat('ru-RU').format(value) + ' ₸';
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function init(){
+  try {
+    const response = await fetch('/api/options'); const data = await response.json();
+    fill($('city'), data.cities, 'Выберите город'); fill($('event_type'), data.event_types, 'Выберите тип');
+    fill($('category'), data.categories, 'Выберите категорию'); fill($('language'), data.languages, 'Любой язык');
+    $('mode').textContent = data.api_enabled ? 'Подключены API эмбеддингов и языковой модели.' : 'Локальный режим: точные правила и объяснения по данным каталога. Для LLM и эмбеддингов добавьте API-ключ.';
+  } catch (_) { $('mode').textContent = 'Не удалось загрузить каталог. Перезапустите приложение.'; }
+}
+function showNoMatch(data){
+  $('cards').replaceChildren(); $('empty').classList.remove('hidden');
+  $('empty-title').textContent = data.message;
+  $('empty-text').textContent = data.status === 'no_catalog' ? 'Проверьте город и категорию в форме.' : 'Причины отказа для найденных карточек:';
+  const reasons = $('reasons'); reasons.replaceChildren();
+  (data.reason_labels || []).forEach(text => { const li = document.createElement('li'); li.textContent = text; reasons.append(li); });
+  reasons.classList.toggle('hidden', !data.reason_labels?.length);
+  $('summary').textContent = data.status === 'no_catalog' ? 'В каталоге нет такого сочетания.' : 'Кандидаты есть, но ни один не проходит условия.';
+}
+function renderCard(card, request){
+  const tags = [];
+  if (card.languages?.length) tags.push('Языки: ' + card.languages.join(', '));
+  if (card.max_hours != null) tags.push('До ' + card.max_hours + ' ч');
+  tags.push('Свободен ' + new Date(request.event_date + 'T12:00:00').toLocaleDateString('ru-RU', {day:'numeric', month:'long'}));
+  if (card.price_imputed) tags.push('Цена ориентировочная');
+  if (card.city_imputed) tags.push('Город указан ориентировочно');
+  return `<article class="card"><div class="card-top"><div><h3>${esc(card.name)}</h3><div class="category">${esc(card.category)} · ${esc(card.city)}</div></div><div class="price">от ${esc(formatMoney(card.price_kzt))}</div></div><div class="meta">${tags.map((tag,i)=>`<span class="tag ${i>1 && (card.price_imputed || card.city_imputed)?'warn':''}">${esc(tag)}</span>`).join('')}</div><p class="explanation">${esc(card.explanation)}</p></article>`;
+}
+$('form').addEventListener('submit', async event => {
+  event.preventDefault(); $('error').classList.add('hidden'); $('empty').classList.add('hidden'); $('cards').replaceChildren();
+  const button = $('submit'); button.disabled = true; button.innerHTML = '<span class="spin"></span>Подбираем';
+  const request = {city:$('city').value,event_date:$('event_date').value,event_type:$('event_type').value,category:$('category').value,budget_kzt:$('budget_kzt').value,duration_hours:$('duration_hours').value||null,language:$('language').value};
+  try {
+    const response = await fetch('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});
+    const data = await response.json(); if(!response.ok) throw new Error(data.error || 'Ошибка запроса');
+    if(data.status !== 'recommendations'){showNoMatch(data);return;}
+    $('empty').classList.add('hidden'); $('summary').textContent = data.message;
+    $('cards').innerHTML = data.cards.map(card=>renderCard(card,request)).join('');
+    $('api-note').textContent = data.api_note || (data.api_enabled ? 'Объяснения сформированы моделью по фактам каталога; доступность проверена правилами.' : 'Объяснения составлены по проверяемым полям каталога.');
+    $('api-note').classList.remove('hidden');
+  } catch(error) { $('error').textContent = error.message; $('error').classList.remove('hidden'); }
+  finally { button.disabled = false; button.textContent = 'Подобрать подрядчиков'; }
+});
+init();
+</script>
+</body>
+</html>
