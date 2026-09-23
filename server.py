@@ -207,6 +207,14 @@ FAIL_LABELS = {
 }
 
 
+def exclusion_summary(rejected: Dict[str, int]) -> List[str]:
+    """Return user-facing counts of filters that excluded candidates."""
+    return [
+        "{} — {}".format(count, FAIL_LABELS[key])
+        for key, count in sorted(rejected.items(), key=lambda pair: (-pair[1], pair[0]))
+    ]
+
+
 def evidence_for(provider: Dict[str, Any], req: Dict[str, Any]) -> List[Dict[str, str]]:
     evidence = [
         {"id": "city", "fact": ("город " + provider["city"] + (" (указан ориентировочно)" if provider["city_is_imputed"] else ""))},
@@ -296,8 +304,9 @@ def recommend(body: Dict[str, Any]) -> Dict[str, Any]:
 
     query_vector = None
     semantic = {}
-    semantic_note = ""
-    if API_KEY:
+    semantic_note = "Порядок карточек определяется только ценой и ID каталога."
+    # External models must not influence recommendation order.
+    if False:
         try:
             vectors = get_provider_embeddings(eligible)
             query_vector = embed([request_text(req)])[0]
@@ -307,11 +316,7 @@ def recommend(body: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             semantic_note = "API эмбеддингов сейчас недоступен; применена стабильная сортировка по каталогу."
 
-    def score(provider: Dict[str, Any]) -> Tuple[float, int, str]:
-        # The embedding only breaks ties within fully eligible candidates.
-        return (round(semantic.get(provider["id"], 0.0), 6), -(provider["price"] or 0), provider["id"])
-
-    eligible.sort(key=score, reverse=True)
+    eligible.sort(key=lambda provider: (provider["price"] or 0, provider["id"]))
     chosen = eligible[:3]
     cards = []
     for p in chosen:
@@ -322,15 +327,20 @@ def recommend(body: Dict[str, Any]) -> Dict[str, Any]:
             "city_imputed": p["city_is_imputed"], "languages": p["languages_list"],
             "max_hours": p["max_hours_value"], "explanation": fallback_explanation(p, req),
             "evidence": evidence, "explanation_source": "rules",
-            "semantic_score": round(semantic[p["id"]], 4) if p["id"] in semantic else None,
+            "semantic_score": None,
         })
     llm_explanations(cards, req)
     count = len(eligible)
+    reason_labels: List[str] = []
     message = "Подобрали {} подрядчика.".format(min(count, 3))
     if count < 3:
+        reason_labels = exclusion_summary(rejected)
+        if reason_labels:
+            message += " Исключённые варианты: " + "; ".join(reason_labels) + "."
         message += " Подходящих меньше трёх: по всем заданным условиям нашлось только {}.".format(count)
     return {"status": "recommendations", "count": count, "cards": cards,
-            "message": message, "reasons": {}, "api_enabled": bool(API_KEY), "api_note": semantic_note}
+            "message": message, "reasons": rejected, "reason_labels": reason_labels,
+            "api_enabled": bool(API_KEY), "api_note": semantic_note}
 
 
 def options() -> Dict[str, List[str]]:
@@ -387,3 +397,4 @@ if __name__ == "__main__":
     print("Каталог загружен: {} записей".format(len(PROVIDERS)))
     print("Откройте http://localhost:{}".format(PORT))
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    
